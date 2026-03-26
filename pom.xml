@@ -86,12 +86,63 @@
 				<artifactId>maven-compiler-plugin</artifactId>
 
 				<configuration>
-					<source>25</source>
-					<target>25</target>
+					<source>17</source>
+					<target>17</target>
 
 				</configuration>
 			</plugin>
-		</plugins>
+
+			<plugin>
+				<groupId>org.openapitools</groupId>
+				<artifactId>openapi-generator-maven-plugin</artifactId>
+				<version>7.5.0</version>
+				<executions>
+					<execution>
+						<id>generate-api</id>
+						<phase>generate-sources</phase> <!-- ✅ VERY IMPORTANT -->
+						<goals>
+							<goal>generate</goal>
+						</goals>
+						<configuration>
+							<inputSpec>${project.basedir}/src/main/resources/openapi.yaml</inputSpec>
+							<generatorName>spring</generatorName>
+							<output>${project.build.directory}/generated-sources/openapi</output>
+
+							<!-- ✅ FIXED PACKAGE -->
+							<apiPackage>com.example.api</apiPackage>
+							<modelPackage>org.openapitools.model</modelPackage>
+
+							<configOptions>
+								<interfaceOnly>true</interfaceOnly>
+								<useSpringBoot3>true</useSpringBoot3>
+							</configOptions>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+
+			<plugin>
+				<groupId>org.codehaus.mojo</groupId>
+				<artifactId>build-helper-maven-plugin</artifactId>
+				<version>3.5.0</version>
+				<executions>
+					<execution>
+						<id>add-source</id>
+						<phase>generate-sources</phase>
+						<goals>
+							<goal>add-source</goal>
+						</goals>
+						<configuration>
+							<sources>
+								<source>${project.build.directory}/generated-sources/openapi/src/main/java</source>
+							</sources>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+			</plugins>
+
+
 	</build>
 
 </project>
