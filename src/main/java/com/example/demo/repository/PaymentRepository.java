@@ -1,15 +1,16 @@
 package com.example.demo.repository;
 
-import com.example.demo.model.Payment;
+import com.example.demo.entity.PaymentEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
+import java.math.BigDecimal;
 
 import java.util.List;
 
-public interface PaymentRepository extends JpaRepository<Payment, Long> {
+public interface PaymentRepository extends JpaRepository<PaymentEntity, Long> {
 
-    List<Payment> findByAmountGreaterThanEqual(double amount);
+    List<PaymentEntity> findByCurrencyIn(List<String> currencies);
 
-    List<Payment> findByCurrencyIn(List<String> currencies);
+    List<PaymentEntity> findByAmountGreaterThanEqual(BigDecimal amount);
 
-    List<Payment> findByCurrencyInAndAmountGreaterThanEqual(List<String> currencies, double amount);
+    List<PaymentEntity> findByCurrencyInAndAmountGreaterThanEqual(List<String> currencies, BigDecimal amount);
 }
