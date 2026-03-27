@@ -1,11 +1,13 @@
 package com.example.demo.service;
 
 import com.example.demo.entity.PaymentEntity;
-import com.example.demo.entity.PaymentsResponse;
 import com.example.demo.repository.PaymentRepository;
 import org.openapitools.model.Account;
 import org.openapitools.model.Payment;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -13,54 +15,45 @@ import java.util.List;
 @Service
 public class PaymentService {
 
+    private static final Logger log = LoggerFactory.getLogger(PaymentService.class);
+
     private final PaymentRepository repo;
 
     public PaymentService(PaymentRepository repo) {
         this.repo = repo;
     }
 
-    // ✅ CREATE PAYMENT
+    @Transactional
     public Payment createPayment(Payment payment) {
+        log.info("Creating payment: currency={}, amount={}", payment.getCurrency(), payment.getAmount());
 
         PaymentEntity entity = convertToEntity(payment);
         PaymentEntity saved = repo.save(entity);
 
+        log.info("Payment created with id={}", saved.getId());
         return convertToDto(saved);
     }
 
-    public PaymentsResponse getPayments(Double minAmount, List<String> currencies) {
+    @Transactional(readOnly = true)
+    public List<Payment> getPayments(BigDecimal minAmount, List<String> currencies) {
+        log.info("Fetching payments: minAmount={}, currencies={}", minAmount, currencies);
 
         List<PaymentEntity> entities;
-        BigDecimal bdAmount = minAmount != null ? BigDecimal.valueOf(minAmount) : null;
 
         if (minAmount != null && currencies != null) {
-            entities = repo.findByCurrencyInAndAmountGreaterThanEqual(currencies, bdAmount);
-
+            entities = repo.findByCurrencyInAndAmountGreaterThanEqual(currencies, minAmount);
         } else if (minAmount != null) {
-            entities = repo.findByAmountGreaterThanEqual(bdAmount);
-
+            entities = repo.findByAmountGreaterThanEqual(minAmount);
         } else if (currencies != null) {
             entities = repo.findByCurrencyIn(currencies);
-
         } else {
             entities = repo.findAll();
         }
 
-        PaymentsResponse response = new PaymentsResponse();
-
-        if (entities.isEmpty()) {
-            response.setPayments(List.of());
-            response.setMessage("NoPaymentsFound");
-        } else {
-            response.setPayments(
-                    entities.stream().map(this::convertToDto).toList()
-            );
-            response.setMessage("Payments");
-        }
-
-        return response;
+        log.info("Found {} payments", entities.size());
+        return entities.stream().map(this::convertToDto).toList();
     }
-    // ✅ DTO → ENTITY
+
     private PaymentEntity convertToEntity(Payment payment) {
         PaymentEntity entity = new PaymentEntity();
 
@@ -70,26 +63,28 @@ public class PaymentService {
         if (payment.getCounterparty() != null) {
             entity.setAccountNumber(payment.getCounterparty().getAccountNumber());
             entity.setSortCode(payment.getCounterparty().getSortCode());
-            entity.setType(payment.getCounterparty().getType().name());
+            if (payment.getCounterparty().getType() != null) {
+                entity.setType(payment.getCounterparty().getType().name());
+            } else {
+                log.warn("Payment counterparty type is null for currency={}", payment.getCurrency());
+            }
         }
 
         return entity;
     }
 
-    // ✅ ENTITY → DTO
     private Payment convertToDto(PaymentEntity entity) {
         Payment payment = new Payment();
 
         payment.setCurrency(entity.getCurrency());
-
-        // ✅ FIXED LINE
         payment.setAmount(entity.getAmount());
 
         Account account = new Account();
-
         account.setAccountNumber(entity.getAccountNumber());
         account.setSortCode(entity.getSortCode());
-        account.setType(Account.TypeEnum.valueOf(entity.getType()));
+        if (entity.getType() != null) {
+            account.setType(Account.TypeEnum.valueOf(entity.getType()));
+        }
 
         payment.setCounterparty(account);
 
